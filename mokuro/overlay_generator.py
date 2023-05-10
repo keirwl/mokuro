@@ -57,7 +57,7 @@ class OverlayGenerator:
         if self.mpocr is None:
             self.mpocr = MangaPageOcr(self.pretrained_model_name_or_path, self.force_cpu, disable_ocr=self.disable_ocr, **self.kwargs)
 
-    def process_dir(self, path, as_one_file=True, is_demo=False):
+    def process_dir(self, path, as_one_file=True, output_to_text=False, is_demo=False):
         path = Path(path).expanduser().absolute()
         assert path.is_dir(), f'{path} must be a directory'
         if path.stem == '_ocr':
@@ -77,6 +77,7 @@ class OverlayGenerator:
         img_paths = natsorted(img_paths)
 
         page_htmls = []
+        all_text = []
 
         for img_path in tqdm(img_paths, desc='Processing pages...'):
             json_path = (results_dir / img_path.relative_to(path)).with_suffix('.json')
@@ -92,8 +93,14 @@ class OverlayGenerator:
                 json_path.parent.mkdir(parents=True, exist_ok=True)
                 dump_json(result, json_path)
 
+            for block in result['blocks']:
+                all_text.append(''.join(block['lines']))
+
             page_html = self.get_page_html(result, img_path.relative_to(out_dir))
             page_htmls.append(page_html)
+
+        if output_to_text:
+            (out_dir / (path.name + '.txt')).write_text(('\n'.join(all_text)))
 
         if is_demo:
             title = f'mokuro {__version__} demo'
